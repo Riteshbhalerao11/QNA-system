@@ -1,5 +1,8 @@
 # Question Answering on SQuAD 2.0
 
+## Current progress
+Baseline starter code and structure replicated from [David Lee's repository](https://github.com/daviddwlee84/Stanford-CS224n-NLP)
+
 ## Setup
 
 1. Make sure you have [Miniconda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation) installed
