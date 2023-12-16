@@ -28,7 +28,6 @@ from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 
-from my_models import BiDAFChar
 
 def main(args):
     # Set up logging
@@ -38,26 +37,15 @@ def main(args):
     device, gpu_ids = util.get_available_devices()
     args.batch_size *= max(1, len(gpu_ids))
 
-    if args.model in ('BiDAF-w-char', ):
-        args.is_char_model = True
-
     # Get embeddings
     log.info('Loading embeddings...')
     word_vectors = util.torch_from_json(args.word_emb_file)
-    if args.is_char_model:
-        char_vectors = util.torch_from_json(args.char_emb_file)
 
     # Get model
     log.info('Building model...')
-    if args.model == 'BiDAF-baseline':
-        model = BiDAF(word_vectors=word_vectors,
-                      hidden_size=args.hidden_size)
-    elif args.model == 'BiDAF-w-char':
-        model = BiDAFChar(word_vectors=word_vectors,
-                          char_vectors=char_vectors,
-                          hidden_size=args.hidden_size)
-    if not args.debug:
-        model = nn.DataParallel(model, gpu_ids)
+    model = BiDAF(word_vectors=word_vectors,
+                  hidden_size=args.hidden_size)
+    model = nn.DataParallel(model, gpu_ids)
     log.info(f'Loading checkpoint from {args.load_path}...')
     model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
     model = model.to(device)
@@ -87,16 +75,10 @@ def main(args):
             # Setup for forward
             cw_idxs = cw_idxs.to(device)
             qw_idxs = qw_idxs.to(device)
-            if args.is_char_model:
-                cc_idxs = cc_idxs.to(device)
-                qc_idxs = qc_idxs.to(device)
             batch_size = cw_idxs.size(0)
 
             # Forward
-            if not args.is_char_model:
-                log_p1, log_p2 = model(cw_idxs, qw_idxs)
-            else:
-                log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+            log_p1, log_p2 = model(cw_idxs, qw_idxs)
             y1, y2 = y1.to(device), y2.to(device)
             loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
             nll_meter.update(loss.item(), batch_size)
